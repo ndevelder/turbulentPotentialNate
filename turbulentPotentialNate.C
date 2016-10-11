@@ -1068,8 +1068,8 @@ void turbulentPotentialNate::correct()
 	
 	
 	// Production initialize
-	volScalarField S2 = magSqr(dev(symm(uGrad_)));
-    volScalarField G("RASModel::G", nut_*2*S2);
+	const volScalarField S2(2*magSqr(symm(fvc::grad(U_))));
+    volScalarField G("RASModel::G", nut_*S2);
 	
 	
     // Production set
@@ -1077,7 +1077,7 @@ void turbulentPotentialNate::correct()
 	{
 		Info<< "Using nut*S^2 for production" << endl;
 		const volScalarField S2(2*magSqr(symm(fvc::grad(U_))));
-		volScalarField G("RASModel::G", cPr_*nut_*S2);
+		volScalarField G("RASModel::G", nut_*S2);
 		tpProd_ = tppsi_ & vorticity_;
 	}
 	else
@@ -1280,6 +1280,7 @@ void turbulentPotentialNate::correct()
       - gT3_*2.0*(nut_)*(gradk_ & gradPsiOverK)     
 	  + fvm::Sp(-1.0*(cP1_*nutFrac()*epsHat_*(1.0-Alpha())),tppsi_)   
       + fvm::Sp(-1.0*Alpha()*(epsilon_/k_),tppsi_)
+
       + gT2_*fvm::Sp(-2.0*nu()*(gradkSqrt_ & gradPhiSqrt)/(sqrt(k_*tpphi_)),tppsi_)
       + cT_*sqrt((nut_/nu()))*vorticity_*k_
     );
