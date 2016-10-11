@@ -81,6 +81,7 @@ class turbulentPotentialNate
             dimensionedScalar cEp3_;
             dimensionedScalar cD1_;
             dimensionedScalar cD2_;
+            dimensionedScalar cKp_;
             dimensionedScalar cVv1_;
             dimensionedScalar cTv1_;
             dimensionedScalar cP1_;

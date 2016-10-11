@@ -127,6 +127,15 @@ turbulentPotentialNate::turbulentPotentialNate
             0.88
         )
     ),
+    cKp_
+    (
+        dimensioned<scalar>::lookupOrAddToDict
+        (
+            "cKp",
+       	    coeffDict_,
+            0.0
+        )
+    ),
     cVv1_
     (
      	dimensioned<scalar>::lookupOrAddToDict
@@ -1139,7 +1148,7 @@ void turbulentPotentialNate::correct()
 	    sigmaEps_ = 0.33 + 0.4*(tpProd_/(epsHat_*k_));
     }
 
-    epsilonSafe_ = max(epsilon_, dimensionedScalar("minEps", epsilon_.dimensions(), 1.0e-15));
+    epsilonSafe_ = max(epsilon_, dimensionedScalar("minEps", epsilon_.dimensions(), 1.0e-10));
 
     if(eqncEp2_ == "true")
     {
@@ -1162,14 +1171,14 @@ void turbulentPotentialNate::correct()
       - fvm::laplacian(DepsilonEff(), epsilon_)
      ==
        cEp1_*G*epsHat_ 
-     + fvm::Sp(-1.0*cEp2_*epsHat_,epsilon_)
+     - fvm::Sp(cEp2_*epsHat_,epsilon_)
     );
 
     if(solveEps_ == "true")
     {
     epsEqn().relax();
     solve(epsEqn);
-    bound(epsilon_,dimensionedScalar("minEps", epsilon_.dimensions(), 1.0e-15));
+    bound(epsilon_,dimensionedScalar("minEps", epsilon_.dimensions(), 1.0e-10));
     }
 
 
@@ -1183,7 +1192,7 @@ void turbulentPotentialNate::correct()
       - fvm::laplacian(DkEff(), k_)
      ==
         G
-      + fvc::laplacian(nu()/cMu_,tpphi_)
+      + cKp_*fvc::laplacian(nu()/cMu_,tpphi_)
       - fvm::Sp(epsilon_/k_,k_)
     );
 
@@ -1191,7 +1200,7 @@ void turbulentPotentialNate::correct()
     {
     kEqn().relax();
     solve(kEqn);
-    bound(k_,dimensionedScalar("minK", k_.dimensions(), 1.0e-15));
+    bound(k_,dimensionedScalar("minK", k_.dimensions(), 1.0e-10));
     }
 
 
