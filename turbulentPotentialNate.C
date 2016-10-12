@@ -62,10 +62,10 @@ tmp<volScalarField> turbulentPotentialNate::TsEh() const
 {
 	if(tslimiter_ == "true")
 	{
-        return max(1.0/(epsHat_ + epsilonSmall_), minTS());
+        return max(1.0/(epsHat_), minTS());
 	}
 	
-    return (1.0/(epsHat_+ epsilonSmall_));
+    return (1.0/(epsHat_));
 }
 
 
