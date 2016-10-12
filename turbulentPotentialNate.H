@@ -213,7 +213,7 @@ public:
 		{
             return tmp<volScalarField>
             (
-				new volScalarField("minTS",6.0*sqrt(nu()/epsilon_))
+				new volScalarField("minTS",6.0*sqrt(nu()/(epsilon_ + epsilonSmall_)))
 			);
 		}
 
@@ -250,7 +250,7 @@ public:
         {
             return tmp<volScalarField>
             (
-                new volScalarField("PhiOverK", tpphi_/k_)
+                new volScalarField("PhiOverK", tpphi_/(k_ + k0_))
             );
         }
 
@@ -259,7 +259,7 @@ public:
         {
             return tmp<volVectorField>
             (
-                new volVectorField("PsiOverK", tppsi_/k_)
+                new volVectorField("PsiOverK", tppsi_/(k_ + k0_))
             );
         }
 
@@ -295,7 +295,7 @@ public:
         {
             return tmp<volScalarField>
             (
-                new volScalarField("reTau", k_*k_/(nu()*epsilon_))
+                new volScalarField("reTau", k_*k_/(nu()*(epsilon_ + epsilonSmall_)))
             );
         }
 
@@ -381,7 +381,7 @@ public:
         {
             return tmp<volScalarField>
             (
-                new volScalarField("tpReynolds", k_*k_/(epsilon_*nu()))
+                new volScalarField("tpReynolds", k_*k_/((epsilon_ + epsilonSmall_)*nu()))
             );
         }
 

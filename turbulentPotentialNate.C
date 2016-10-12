@@ -52,20 +52,20 @@ tmp<volScalarField> turbulentPotentialNate::Ts() const
 {
 	if(tslimiter_ == "true")
 	{
-        return max(k_/epsilon_, minTS());
+        return max(k_/(epsilon_ + epsilonSmall_), minTS());
 	}
 	
-    return (k_/epsilon_);
+    return (k_/(epsilon_ + epsilonSmall_));
 }
 
 tmp<volScalarField> turbulentPotentialNate::TsEh() const
 {
 	if(tslimiter_ == "true")
 	{
-        return max(1.0/epsHat_, minTS());
+        return max(1.0/(epsHat_ + epsilonSmall_), minTS());
 	}
 	
-    return (1.0/epsHat_);
+    return (1.0/(epsHat_+ epsilonSmall_));
 }
 
 
@@ -922,6 +922,8 @@ turbulentPotentialNate::turbulentPotentialNate
             nut_ = cMu_*tpphi_*TsEh();
         }
         
+        nut_.correctBoundaryConditions();
+        
     }
 
     kSafe_ = max(k_, dimensionedScalar("minK", k_.dimensions(), 1.0e-15));
@@ -952,9 +954,8 @@ tmp<volSymmTensorField> turbulentPotentialNate::R() const
                 IOobject::NO_READ,
                 IOobject::NO_WRITE
             ),
-            (
-			  (2.0/3.0)*I)*k_ - nut_*twoSymm(fvc::grad(U_)
-			)
+            ((2.0/3.0)*I)*k_ - nut_*twoSymm(fvc::grad(U_)),
+            k_.boundaryField().types()
         )
     );
 }
@@ -984,10 +985,10 @@ tmp<fvVectorMatrix> turbulentPotentialNate::divDevReff(volVectorField& U) const
 {
     return
     (
-       fvc::grad(tpphi_)
-     + fvc::curl(tppsi_)
-     + fvc::laplacian(nut_, U, "laplacian(nuEff,U)")
-     - fvm::laplacian(nuEff(), U)
+		fvc::grad(tpphi_)
+		+ fvc::curl(tppsi_)
+		+ fvc::laplacian(nut_, U, "laplacian(nuEff,U)")
+		- fvm::laplacian(nuEff(), U)
     );
 }
 
@@ -1095,13 +1096,15 @@ void turbulentPotentialNate::correct()
 		tpProd_ = tppsi_ & vorticity_;
 		G = tpProd_;
 	}
+	
+	volScalarField GdK("GdK", G/(k_ + k0_));
     //Info<< "Made it production" << endl;
 
 	
     // Epsilon-hat (Epsilon - Epsilon Wall)
 	if(eqnEpsHat_ == "mod")
 	{
-        epsHat_ = (epsilon_)/(k_ + cEhm_*nu()*mag(gradkSqrt_));
+        epsHat_ = (epsilon_)/(k_ + cEhm_*nu()*mag(gradkSqrt_) + k0_);
         bound(epsHat_,dimensionedScalar("minEpsHat", epsHat_.dimensions(), 1.0e-10));
 	}
 	else if(eqnEpsHat_ == "dif")
@@ -1111,18 +1114,18 @@ void turbulentPotentialNate::correct()
 	}
 	else if(eqnEpsHat_ == "eps")
 	{
-        epsHat_ = epsilon_/k_;
+        epsHat_ = epsilon_/(k_ + k0_);
         bound(epsHat_,dimensionedScalar("minEpsHat", epsHat_.dimensions(), 1.0e-10));
 	}
 	else if(eqnEpsHat_ == "rough")
 	{
-        epsHat_ = epsilon_/k_;
+        epsHat_ = epsilon_/(k_ + k0_);
         bound(epsHat_,dimensionedScalar("minEpsHat", epsHat_.dimensions(), 1.0e-10));
 	}
 	else
 	{
         Info<< "No EpsHat Model Chosen" <<endl;
-	    epsHat_ = (epsilon_)/(k_ + cEhm_*nu()*mag(fvc::grad(kSqrt_)));
+	    epsHat_ = (epsilon_)/(k_ + cEhm_*nu()*mag(gradkSqrt_) + k0_);
 	    bound(epsHat_,dimensionedScalar("minEpsHat", epsHat_.dimensions(), 1.0e-10));
 	}
 
@@ -1215,7 +1218,7 @@ void turbulentPotentialNate::correct()
     tpphisqrt_ = sqrt(tpphi_);
     volVectorField gradPhiSqrt("gradPhiSqrt", fvc::grad(tpphisqrt_));
        
-    volScalarField GdK("GdK", G/k_);
+
     
     volVectorField gradPhiOverK("gradPhiOverK",fvc::grad(PhiOverK()));
 
@@ -1233,14 +1236,14 @@ void turbulentPotentialNate::correct()
       (0.5 + cPphi_*(2.0*Alpha() - 1.0)*nutFrac())*tpphi_*epsHat_
       + cP2_*GdK*tpphi_
       // Pressure diffusion
-      + fvm::Sp(-1.0*(cP4_+ cP2_)*GdK,tpphi_) 
+      - fvm::Sp((cP4_+ cP2_)*GdK,tpphi_) 
       + (cP4_+ cP2_)*Alpha()*((tppsi_ & tppsi_)/((nut_*k_)*(1.0+cPw_/reTau())))*tpphi_
       // Dissipation
-      + fvm::Sp(-2.0*Alpha()*epsHat_,tpphi_)
-      + gT2_*fvm::Sp(-2.0*nu()*(gradPhiSqrt & gradPhiSqrt)/tpphi_,tpphi_)
+      - fvm::Sp(2.0*Alpha()*epsHat_,tpphi_)
+      - gT2_*fvm::Sp(2.0*nu()*(gradPhiSqrt & gradPhiSqrt)/tpphi_,tpphi_)
       // Diffusion and Transition
-      + gT1_*fvm::Sp(-1.0*(nu())*(gradk_ & gradPhiOverK)/tpphi_,tpphi_) 
-      + gT3_*fvm::Sp(-1.0*(nut_)*(gradk_ & gradPhiOverK)/tpphi_,tpphi_)	       
+      - gT1_*fvm::Sp((nu())*(gradk_ & gradPhiOverK)/tpphi_,tpphi_) 
+      - gT3_*fvm::Sp((nut_)*(gradk_ & gradPhiOverK)/tpphi_,tpphi_)	       
       + cT_*(1.5*tpphi_-k_)*GdK*sqrt((nut_/nu()))
     );
 
@@ -1287,8 +1290,8 @@ void turbulentPotentialNate::correct()
       + cMu_*(2*Alpha() - 1.0)*tpphi_*vorticity_
       - gT1_*2.0*(nu())*(gradk_ & gradPsiOverK) 
       - gT3_*2.0*(nut_)*(gradk_ & gradPsiOverK)     
-	  + fvm::Sp(-1.0*(cP1_*nutFrac()*epsHat_*(1.0-Alpha())),tppsi_)   
-      + fvm::Sp(-1.0*Alpha()*(epsilon_/k_),tppsi_)
+	  - fvm::Sp((cP1_*nutFrac()*epsHat_*(1.0-Alpha())),tppsi_)   
+      - fvm::Sp(Alpha()*(epsilon_/k_),tppsi_)
 
       + gT2_*fvm::Sp(-2.0*nu()*(gradkSqrt_ & gradPhiSqrt)/(sqrt(k_*tpphi_)),tppsi_)
       + cT_*sqrt((nut_/nu()))*vorticity_*k_
@@ -1312,14 +1315,14 @@ void turbulentPotentialNate::correct()
         if(timeScaleEps_ == "epsilon" || timeScaleEps_ != "epsHat")
 		{
             nut_ = cMu_*tpphi_*Ts();
-            nut_.correctBoundaryConditions();
         }
         
         if(timeScaleEps_ == "epsHat")
 		{
             nut_ = cMu_*tpphi_*TsEh();
-            nut_.correctBoundaryConditions();
         }
+        
+        nut_.correctBoundaryConditions();
         
     }
 		
