@@ -985,7 +985,7 @@ tmp<fvVectorMatrix> turbulentPotentialNate::divDevReff(volVectorField& U) const
 {
     return
     (
-		fvc::grad(tpphi_)
+		  fvc::grad(tpphi_)
 		+ fvc::curl(tppsi_)
 		+ fvc::laplacian(nut_, U, "laplacian(nuEff,U)")
 		- fvm::laplacian(nuEff(), U)
@@ -1089,12 +1089,14 @@ void turbulentPotentialNate::correct()
 		const volScalarField S2(2*magSqr(symm(fvc::grad(U_))));
 		volScalarField G("RASModel::G", nut_*S2);
 		tpProd_ = tppsi_ & vorticity_;
+		tpProd3d_ = (mag(psiReal() ^ vorticity_));	
 	}
 	else
 	{
 		Info<< "Using psi*vorticity for production" << endl;
 		tpProd_ = tppsi_ & vorticity_;
 		G = tpProd_;
+		tpProd3d_ = (mag(psiReal() ^ vorticity_));
 	}
 	
 	volScalarField GdK("GdK", G/(k_ + k0_));
@@ -1175,6 +1177,7 @@ void turbulentPotentialNate::correct()
      ==
        cEp1_*G*epsHat_ 
      - fvm::Sp(cEp2_*epsHat_,epsilon_)
+     + cEp3_*tpProd3d_*epsHat_ 
     );
 
     if(solveEps_ == "true")
