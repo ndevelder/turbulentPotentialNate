@@ -1328,10 +1328,14 @@ void turbulentPotentialNate::correct()
         nut_.correctBoundaryConditions();
         
     }
+    
+    volScalarField uTauSquared((nu() + nut_)*vorticity_.component(2));
 		
 	
 	Info<< "Maximum nut: " << gMax(nut_) << " Maximum K: " << gMax(k_) << " Maximum Epsilon: " << gMax(epsilon_) <<endl;
     Info<< "Maximum Phi: " << gMax(tpphi_) << " Maximum Psi_z: " << gMax(psiZ) << " Maximum Production: " << gMax(G) <<endl;
+    Info<< " Maximum 3D Production: " << gMax(tpProd3d_) << "Maximum uTauSquared: " << gMax(uTauSquared) << endl;
+    
 
 }
 
